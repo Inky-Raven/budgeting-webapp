@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Budgeting App</title>
+    <style>
+        :root {
+            --bg: #0b0f14;
+            --panel: #0f1720;
+            --muted: #97a0ab;
+            --accent: #7c5cff;
+            --accent-2: #26d0ce;
+            --good: #22c55e;
+            --bad: #ff6b6b;
+            --savings: #007bff;
+            --invest: #ffa500;
+            --glass: rgba(255, 255, 255, 0.03);
+            --radius: 12px;
+            --pad: 14px;
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+            color: #dbe7ee;
+            background: linear-gradient(180deg, var(--bg), #071019 120%);
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            gap: 20px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: linear-gradient(180deg, var(--panel), rgba(255, 255, 255, 0.02));
+            border-radius: var(--radius);
+            padding: var(--pad);
+            box-shadow: 0 6px 18px rgba(2, 6, 12, 0.6);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+        }
+
+        p.sub {
+            color: var(--muted);
+            margin: 0;
+            font-size: 13px
+        }
+
+        /* Panels */
+        .left-panel, .middle-panel, .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: calc(100vh - 40px);
+        }
+
+        .left-panel-content, .right-panel-content {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .left-panel-header, .right-panel-header {
+            position: sticky;
+            top: 0;
+            background: var(--panel);
+            z-index: 10;
+            padding-bottom: 12px;
+            margin-bottom: -12px; /* compensate for gap */
+        }
+        
+        .left-panel-header .tile {
+            margin-bottom: 12px;
+        }
+
+        /* Quick Add & Overviews */
+        .tile {
+            padding: 12px;
+            border-radius: 10px;
+            background: var(--glass);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .form-row > * {
+            flex: 1;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            background: transparent;
+            color: #e6f2fb;
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--muted);
+            padding: 8px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        button.primary {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            border: none;
+            color: white
+        }
+
+        button:hover:not(.primary) {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* Transactions Table */
+        .transactions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .transaction-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.02);
+        }
+
+        th {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        tr .amount {
+            font-family: var(--mono);
+        }
+
+        .amount.negative {
+            color: var(--bad);
+        }
+
+        .amount.positive {
+            color: var(--good);
+        }
+
+        .amount.savings {
+            color: var(--savings);
+        }
+
+        .amount.invest {
+            color: var(--invest);
+        }
+        
+        .edit-btn, .delete-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Overviews */
+        .overview-box {
+            padding: 12px;
+            border-radius: 10px;
+            background: var(--glass);
+        }
+
+        .overview-box h3 {
+            margin: 0 0 8px;
+        }
+
+        .overview-value {
+            font-size: 1.5rem;
+            font-family: var(--mono);
+        }
+
+        .income-value { color: var(--good); }
+        .expenses-value { color: var(--bad); }
+        .balance-value { color: #dbe7ee; }
+        .saved-value { color: var(--savings); }
+        .invested-value { color: var(--invest); }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.04);
+            border-radius: 5px;
+            height: 20px;
+            margin-top: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            transition: width 0.4s ease;
+            text-align: center;
+            color: white;
+            font-size: 0.8em;
+            line-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .income-bar { background-color: var(--good); }
+        .expenses-bar { background-color: var(--bad); }
+        .savings-bar { background-color: var(--savings); }
+        .invest-bar { background-color: var(--invest); }
+        .goal-bar { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+        
+        /* Goals */
+        .goal-item {
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            margin-bottom: 8px;
+        }
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .goal-name {
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+        }
+        .goal-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .goal-tick {
+            font-size: 1.5rem;
+            color: var(--good);
+            display: none;
+            margin-left: 8px;
+        }
+        .goal-details {
+            display: none;
+            margin-top: 8px;
+        }
+        
+        .goal-details.show {
+            display: block;
+        }
+
+        .goal-edit-input {
+            width: 100%;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* responsive */
+        @media (max-width:900px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+            .middle-panel, .right-panel {
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app">
+        <aside class="card left-panel" aria-label="sidebar">
+            <div class="left-panel-header">
+                <header>
+                    <div class="logo">F.Y</div>
+                    <div>
+                        <h1>Quick Add</h1>
+                        <p class="sub">Add a transaction or savings goal</p>
+                    </div>
+                </header>
+
+                <div class="tile">
+                    <div style="margin-top:8px;display:grid;gap:8px">
+                        <select id="quick-type">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                            <option value="savings">Savings</option>
+                            <option value="invest">Investment</option>
+                        </select>
+                        <input id="quick-desc" placeholder="Description / Goal" />
+                        <div class="form-row">
+                            <input id="quick-amt" type="number" placeholder="Amount" />
+                            <input id="quick-target" type="number" placeholder="Target (for savings)" style="display: none;" />
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button id="quick-add" class="primary">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="left-panel-content">
+                <h2>Monthly Overview</h2>
+
+                <div class="overview-box">
+                    <h3>Income</h3>
+                    <div class="overview-value income-value" id="total-income-value">KSh0.00</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar income-bar" id="income-bar"></div>
+                    </div>
+                </div>
+
+                <div class="overview-box">
+                    <h3>Expenses</h3>
+                    <div class="overview-value expenses-value" id="total-expenses-value">KSh0.00</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar expenses-bar" id="expenses-bar"></div>
+                    </div>
+                </div>
+
+                <div class="overview-box">
+                    <h3>Savings</h3>
+                    <div class="overview-value saved-value" id="total-savings-value">KSh0.00</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar savings-bar" id="monthly-savings-bar"></div>
+                    </div>
+                </div>
+
+                <div class="overview-box">
+                    <h3>Investments</h3>
+                    <div class="overview-value invested-value" id="total-investments-value">KSh0.00</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar invest-bar" id="monthly-investments-bar"></div>
+                    </div>
+                </div>
+
+                <div class="overview-box">
+                    <h3>Balance</h3>
+                    <div class="overview-value balance-value" id="total-balance-value">KSh0.00</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="card middle-panel" aria-label="transactions">
+            <div class="transaction-controls">
+                <div>
+                    <h2 style="margin:0">Transactions</h2>
+                    <p class="sub">All your transactions in one place.</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <select id="month-select"></select>
+                    <button class="btn-small" onclick="downloadTransactions()">Download</button>
+                </div>
+            </div>
+
+            <div style="overflow:auto;margin-top:8px">
+                <table id="tx-table" aria-live="polite">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </main>
+
+        <aside class="card right-panel">
+            <div class="right-panel-content">
+                <h2>Savings Goals</h2>
+                <div class="goals-list" id="goals-list">
+                </div>
+                
+                <h2>Investments</h2>
+                <div class="investments-list" id="investments-list">
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <template id="tx-row">
+        <tr>
+            <td class="date"></td>
+            <td class="desc"></td>
+            <td class="amount"></td>
+            <td>
+                <button class="edit-btn btn-small">Edit</button>
+                <button class="delete-btn btn-small">Delete</button>
+            </td>
+        </tr>
+    </template>
+    
+    <script>
+        // Global state and initialization
+        let transactions = [];
+        const goals = {};
+        const investments = {};
+        const $ = id => document.getElementById(id);
+        const fmt = n => `KSh${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            populateMonthDropdown();
+            
+            // Event listeners
+            $('quick-type').addEventListener('change', (e) => {
+                $('quick-target').style.display = e.target.value === 'savings' ? 'block' : 'none';
+            });
+            $('quick-add').addEventListener('click', addTransaction);
+            $('month-select').addEventListener('change', render);
+
+            // Initial render
+            render();
+        });
+
+        function saveState() {
+            const state = { transactions, goals, investments };
+            localStorage.setItem('budgetAppState', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const storedState = localStorage.getItem('budgetAppState');
+            if (storedState) {
+                const state = JSON.parse(storedState);
+                transactions = state.transactions || [];
+                Object.keys(state.goals || {}).forEach(goalName => {
+                    goals[goalName] = state.goals[goalName];
+                });
+                Object.keys(state.investments || {}).forEach(investName => {
+                    investments[investName] = state.investments[investName];
+                });
+            }
+        }
+        
+        function populateMonthDropdown() {
+            const select = $('month-select');
+            select.innerHTML = '';
+            const now = new Date();
+            for (let y = 2025; y <= 2030; y++) {
+                for (let m = 0; m < 12; m++) {
+                    const date = new Date(y, m, 1);
+                    const value = date.toISOString().slice(0, 7);
+                    const text = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = text;
+                    select.appendChild(option);
+                }
+            }
+            select.value = now.toISOString().slice(0, 7);
+        }
+        
+        function addTransaction() {
+            const type = $('quick-type').value;
+            const description = $('quick-desc').value.trim();
+            const amount = parseFloat($('quick-amt').value);
+            const targetAmount = parseFloat($('quick-target').value);
+
+            if (!description || isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid description and amount.');
+                return;
+            }
+
+            if (type === 'savings' && (isNaN(targetAmount) || targetAmount <= 0)) {
+                alert('Please enter a valid target amount for your savings goal.');
+                return;
+            }
+
+            const month = $('month-select').value;
+            const newTransaction = {
+                id: Date.now(),
+                month: month,
+                type: type,
+                description: description,
+                amount: amount,
+                target: type === 'savings' ? targetAmount : undefined
+            };
+
+            transactions.push(newTransaction);
+            
+            // Logic for cumulative savings and investments
+            if (type === 'savings') {
+                if (!goals[description]) {
+                    goals[description] = { saved: 0, target: targetAmount, completed: false };
+                }
+                goals[description].saved += amount;
+            } else if (type === 'invest') {
+                if (!investments[description]) {
+                    investments[description] = { invested: 0 };
+                }
+                investments[description].invested += amount;
+            }
+            
+            saveState();
+            render();
+
+            // Clear form inputs
+            $('quick-desc').value = '';
+            $('quick-amt').value = '';
+            if (type === 'savings') {
+                $('quick-target').value = '';
+            }
+        }
+
+        function editTransaction(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            const newDesc = prompt('Edit description:', tx.description);
+            if (newDesc === null) return;
+            const newAmt = prompt('Edit amount:', tx.amount);
+            if (newAmt === null || isNaN(newAmt) || parseFloat(newAmt) <= 0) return;
+
+            // Revert previous transaction's effect
+            if (tx.type === 'savings' && goals[tx.description]) {
+                 goals[tx.description].saved -= tx.amount;
+                 if (goals[tx.description].saved <= 0) delete goals[tx.description];
+            } else if (tx.type === 'invest' && investments[tx.description]) {
+                 investments[tx.description].invested -= tx.amount;
+                 if (investments[tx.description].invested <= 0) delete investments[tx.description];
+            }
+            
+            tx.description = newDesc;
+            tx.amount = parseFloat(newAmt);
+            
+            // Apply new transaction's effect
+            if (tx.type === 'savings') {
+                if (!goals[newDesc]) {
+                    goals[newDesc] = { saved: 0, target: tx.target, completed: false };
+                }
+                goals[newDesc].saved += tx.amount;
+            } else if (tx.type === 'invest') {
+                if (!investments[newDesc]) {
+                    investments[newDesc] = { invested: 0 };
+                }
+                investments[newDesc].invested += tx.amount;
+            }
+
+            saveState();
+            render();
+        }
+
+        function deleteTransaction(id) {
+            if (!confirm('Are you sure you want to delete this transaction?')) return;
+            const index = transactions.findIndex(t => t.id === id);
+            if (index > -1) {
+                const deletedTx = transactions.splice(index, 1)[0];
+                if (deletedTx.type === 'savings' && goals[deletedTx.description]) {
+                    goals[deletedTx.description].saved -= deletedTx.amount;
+                    if (goals[deletedTx.description].saved <= 0) {
+                        delete goals[deletedTx.description];
+                    }
+                } else if (deletedTx.type === 'invest' && investments[deletedTx.description]) {
+                    investments[deletedTx.description].invested -= deletedTx.amount;
+                    if (investments[deletedTx.description].invested <= 0) {
+                        delete investments[deletedTx.description];
+                    }
+                }
+                saveState();
+                render();
+            }
+        }
+        
+        function editGoalAmount(goalName) {
+            const goal = goals[goalName];
+            if (!goal) return;
+
+            const newAmt = prompt(`Edit saved amount for "${goalName}":`, goal.saved);
+            if (newAmt === null || isNaN(newAmt) || parseFloat(newAmt) < 0) return;
+            
+            const diff = parseFloat(newAmt) - goal.saved;
+            goal.saved = parseFloat(newAmt);
+
+            // Create or update a savings transaction to reflect the change
+            const selectedMonth = $('month-select').value;
+            const existingTx = transactions.find(t => t.month === selectedMonth && t.type === 'savings' && t.description === goalName);
+
+            if (existingTx) {
+                existingTx.amount += diff;
+            } else {
+                transactions.push({
+                    id: Date.now(),
+                    month: selectedMonth,
+                    type: 'savings',
+                    description: goalName,
+                    amount: diff,
+                    target: goal.target 
+                });
+            }
+
+            saveState();
+            render();
+        }
+
+        function deleteGoal(goalName) {
+            if (!confirm(`Are you sure you want to delete the goal "${goalName}"? This will also remove any related transactions.`)) return;
+
+            // Remove related savings transactions
+            transactions = transactions.filter(t => !(t.type === 'savings' && t.description === goalName));
+
+            // Delete the goal itself
+            delete goals[goalName];
+
+            saveState();
+            render();
+        }
+
+        function toggleGoalDetails(goalName) {
+            const detailsDiv = document.querySelector(`#details-${goalName.replace(/\s/g, '-')}`);
+            detailsDiv.classList.toggle('show');
+        }
+
+        function downloadTransactions() {
+            const selectedMonth = $('month-select').value;
+            const filteredTransactions = transactions.filter(t => t.month === selectedMonth);
+            
+            if (filteredTransactions.length === 0) {
+                alert('No transactions to download for the selected month.');
+                return;
+            }
+
+            const header = 'Date,Type,Description,Amount\n';
+            const rows = filteredTransactions.map(tx => {
+                const date = new Date(tx.month + '-01').toLocaleDateString('en-GB');
+                const description = `"${(tx.type === 'savings' ? `Savings for: ${tx.description}` : (tx.type === 'invest' ? `Investment in: ${tx.description}` : tx.description)).replace(/"/g, '""')}"`;
+                const amount = (tx.type === 'expense' || tx.type === 'savings' || tx.type === 'invest' ? -tx.amount : tx.amount).toFixed(2);
+                return `${date},${tx.type},${description},${amount}`;
+            }).join('\n');
+
+            const csvContent = header + rows;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            
+            const monthText = $('month-select').options[$('month-select').selectedIndex].text.replace(/\s/g, '-');
+            link.setAttribute('download', `transactions-${monthText}.csv`);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function render() {
+            renderTransactions();
+            renderOverview();
+            renderGoals();
+            renderInvestments();
+        }
+
+        function renderTransactions() {
+            const txTableBody = document.querySelector('#tx-table tbody');
+            txTableBody.innerHTML = '';
+            
+            const selectedMonth = $('month-select').value;
+            const filteredTransactions = transactions.filter(t => t.month === selectedMonth);
+            
+            filteredTransactions.forEach(tx => {
+                const newRow = document.getElementById('tx-row').content.cloneNode(true);
+                
+                newRow.querySelector('.date').textContent = new Date(tx.month + '-01').toLocaleDateString('en-GB'); // DD/MM/YYYY format
+                newRow.querySelector('.desc').textContent = (tx.type === 'savings' ? `Savings for: ${tx.description}` : (tx.type === 'invest' ? `Investment in: ${tx.description}` : tx.description));
+                
+                const amountCell = newRow.querySelector('.amount');
+                amountCell.textContent = fmt(tx.amount);
+                
+                if (tx.type === 'income') {
+                    amountCell.classList.add('positive');
+                } else if (tx.type === 'expense') {
+                    amountCell.classList.add('negative');
+                } else if (tx.type === 'savings') {
+                    amountCell.classList.add('savings');
+                } else if (tx.type === 'invest') {
+                    amountCell.classList.add('invest');
+                }
+
+                newRow.querySelector('.edit-btn').addEventListener('click', () => editTransaction(tx.id));
+                newRow.querySelector('.delete-btn').addEventListener('click', () => deleteTransaction(tx.id));
+                
+                txTableBody.appendChild(newRow);
+            });
+        }
+        
+        function renderOverview() {
+            const selectedMonth = $('month-select').value;
+            const currentMonthTransactions = transactions.filter(t => t.month === selectedMonth);
+            
+            const totalIncome = currentMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const totalExpenses = currentMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            const totalSaved = currentMonthTransactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
+            const totalInvested = currentMonthTransactions.filter(t => t.type === 'invest').reduce((sum, t) => sum + t.amount, 0);
+            const totalBalance = totalIncome - totalExpenses - totalSaved - totalInvested;
+
+            $('total-income-value').innerText = fmt(totalIncome);
+            $('total-expenses-value').innerText = fmt(totalExpenses);
+            $('total-savings-value').innerText = fmt(totalSaved);
+            $('total-investments-value').innerText = fmt(totalInvested);
+            $('total-balance-value').innerText = fmt(totalBalance);
+            
+            // Progress bar logic
+            const baseTotal = totalIncome > 0 ? totalIncome : 1;
+            
+            // Monthly savings and investment progress bars
+            const monthlySavingsPercentage = (totalSaved / baseTotal) * 100;
+            const monthlyInvestmentsPercentage = (totalInvested / baseTotal) * 100;
+
+            const monthlySavingsBar = $('monthly-savings-bar');
+            monthlySavingsBar.style.width = `${Math.min(monthlySavingsPercentage, 100).toFixed(0)}%`;
+            monthlySavingsBar.textContent = `${monthlySavingsPercentage.toFixed(0)}%`;
+
+            const monthlyInvestmentsBar = $('monthly-investments-bar');
+            monthlyInvestmentsBar.style.width = `${Math.min(monthlyInvestmentsPercentage, 100).toFixed(0)}%`;
+            monthlyInvestmentsBar.textContent = `${monthlyInvestmentsPercentage.toFixed(0)}%`;
+
+            // Income and Expenses bar
+            const remainingPercentage = Math.max(0, 100 - ((totalExpenses + totalSaved + totalInvested) / baseTotal) * 100);
+            const expensesPercentage = Math.min(100, (totalExpenses / baseTotal) * 100);
+
+            const incomeBar = $('income-bar');
+            incomeBar.style.width = `${remainingPercentage.toFixed(0)}%`;
+            incomeBar.textContent = `${remainingPercentage.toFixed(0)}%`;
+
+            const expensesBar = $('expenses-bar');
+            expensesBar.style.width = `${expensesPercentage.toFixed(0)}%`;
+            expensesBar.textContent = `${expensesPercentage.toFixed(0)}%`;
+        }
+
+        function renderGoals() {
+            const goalsList = $('goals-list');
+            goalsList.innerHTML = '';
+            for (const goalName in goals) {
+                const goal = goals[goalName];
+                const percentage = (goal.saved / goal.target) * 100;
+
+                const goalItem = document.createElement('div');
+                goalItem.classList.add('goal-item');
+
+                const isComplete = goal.saved >= goal.target;
+                if (isComplete) {
+                    goal.completed = true;
+                }
+
+                goalItem.innerHTML = `
+                    <div class="goal-header">
+                        <div class="goal-name">
+                            <span>${goalName}</span>
+                            ${isComplete ? '<span class="goal-tick" style="display: block;">&#10004;</span>' : ''}
+                        </div>
+                        <div class="goal-actions">
+                            <button class="btn-small" onclick="toggleGoalDetails('${goalName.replace(/'/g, "\\'")}')">Details</button>
+                            <button class="btn-small delete-btn" onclick="deleteGoal('${goalName.replace(/'/g, "\\'")}')">Delete</button>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar goal-bar" style="width:${Math.min(percentage, 100)}%;">
+                            ${percentage.toFixed(0)}%
+                        </div>
+                    </div>
+                    <div class="goal-details" id="details-${goalName.replace(/\s/g, '-')}">
+                        <div>Saved: ${fmt(goal.saved)}</div>
+                        <div>Target: ${fmt(goal.target)}</div>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <input type="number" class="goal-edit-input" id="edit-${goalName.replace(/\s/g, '-')}-input" placeholder="Change amount" />
+                            <button class="goal-edit-btn" onclick="editGoalAmount('${goalName.replace(/'/g, "\\'")}')">Update</button>
+                        </div>
+                    </div>
+                `;
+                goalsList.appendChild(goalItem);
+            }
+        }
+
+        function renderInvestments() {
+            const investmentsList = $('investments-list');
+            investmentsList.innerHTML = '';
+            for (const investName in investments) {
+                const investment = investments[investName];
+
+                const investItem = document.createElement('div');
+                investItem.classList.add('goal-item'); // Using the same styling for simplicity
+
+                investItem.innerHTML = `
+                    <div class="goal-name">
+                        <span>${investName}</span>
+                    </div>
+                    <div>Invested: ${fmt(investment.invested)}</div>
+                `;
+                investmentsList.appendChild(investItem);
+            }
+        }
+    </script>
+</body>
+</html>
